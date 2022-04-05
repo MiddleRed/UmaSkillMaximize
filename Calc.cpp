@@ -165,7 +165,13 @@ static int callback(void* data, int argc, char** argv, char** azColName)
 {
     if (argc > 1)
     {
-        wcout << "SQL error: two or more result were found. Expected only one result." << endl;
+        wcout << "错误：预想的查询结果只有一条，而实际查询得到了两个或以上结果" << endl;
+        system("pause");
+        exit(0);
+    }
+    else if (argc < 0)
+    {
+        wcout << "错误：预想的查询结果只有一条，而实际查询没有结果" << endl;
         system("pause");
         exit(0);
     }
@@ -394,9 +400,12 @@ bool isML(string s)
     return s.substr(s.length() - 3) == doubleC;
 }
 
-
-int main()
+bool isCustomDBfile = false;
+int main(int argc, char* argv[])
 {
+    // Handle argument
+    if (argc > 1)   isCustomDBfile = true;
+
     // Initalize
     std::locale::global(std::locale("en_US.UTF-8"));    // I hate it
     for (int i = 0; i < 2; i++)
@@ -478,21 +487,27 @@ int main()
     TCHAR szPath[MAX_PATH];
     SUCCEEDED(SHGetFolderPath(NULL, CSIDL_PROFILE | CSIDL_FLAG_CREATE, NULL, 0, szPath));
     mdbLocate = szPath + mdbLocate;
+    if (isCustomDBfile)
+    {
+        mdbLocate = s2ws(argv[1]);
+        wcout << L"- 计算器将使用第三方 master.mdb 文件：" << mdbLocate << endl << endl;
+    }
     while (1)
     {
         ifstream ifs(mdbLocate);
-        if (ifs.is_open())  break;
+        if (ifs.is_open())
+        {
+            int rc = sqlite3_open(ws2s(mdbLocate).c_str(), &db);
+            if (rc)
+            {
+                fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
+            }
+            else break;
+        }
 
         wprintf(L"错误：无法打开 master.mdb ，请检查游戏目录\n");
-        wprintf(L"如果 master.mdb 不在游戏目录下，请手动输入文件地址:");
+        wprintf(L"如果 master.mdb 不在游戏目录下或无法打开，请手动复制并输入文件地址:");
         getline(wcin, mdbLocate);
-    }
-    int rc = sqlite3_open(ws2s(mdbLocate).c_str(), &db);
-    if (rc)
-    {
-        fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
-        system("pause");
-        exit(0);
     }
 
 
