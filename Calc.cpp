@@ -350,8 +350,6 @@ skill* appendSkill(int id)
     s.cost = stoi(exec(ss.str()));
     ss.clear(); ss.str("");
 
-    ss.clear(); ss.str("");
-
     ss << "SELECT rarity FROM skill_data WHERE `id`=" << id;
     s.rarity = stoi(exec(ss.str()));
     ss.clear(); ss.str("");
@@ -640,7 +638,7 @@ int main(int argc, char* argv[])
                 cin >> hint;
             }
 
-            s->cost = s->cost * ((1 - 0.01 * hintArray[hint]) - 0.1 * (ifGlobalDiscount ? 1 : 0));
+            s->cost = ceil(s->cost * ((1 - 0.01 * hintArray[hint]) - 0.1 * (ifGlobalDiscount ? 1 : 0)));
             wprintf(L"| 此技能消耗 %d Pt, 技能评价 %d Pt. \n|\n", s->cost, s->value);
 
             if (s->isML) ML = true;
@@ -777,8 +775,6 @@ cout << "value:" << tmp.value << endl;*/
     }
 
     wprintf(L"\n\n| 结果:\n|\n| 技能名   消耗Pt   评价Pt\n|\n");
-
-    sort(Log[skillPoint].begin(), Log[skillPoint].end());
 
     skill result[MAXN];
     int ridx = 0;
