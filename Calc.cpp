@@ -1,3 +1,5 @@
+#include "sqlite/sqlite3.h"
+
 #include <iostream>
 #include <string>
 #include <cstring>
@@ -6,9 +8,11 @@
 #include <fstream>
 #include <locale>
 #include <ShlObj.h>
-#include <sqlite3.h>
 #include <algorithm>
 #include <vector>
+#include <filesystem>
+
+#pragma comment(lib, "sqlite3.lib")
 
 #define MAXN 200
 #define MAXP 10000
@@ -158,6 +162,15 @@ string i2s(int n)
     return ss.str();
 }
 
+// https://stackoverflow.com/questions/875249/how-to-get-current-directory
+std::wstring ExePath()
+{
+    TCHAR buffer[MAX_PATH] = { 0 };
+    GetModuleFileName(NULL, buffer, MAX_PATH);
+    std::wstring::size_type pos = std::wstring(buffer).find_last_of(L"\\/");
+    return std::wstring(buffer).substr(0, pos);
+}
+
 sqlite3* db;
 char* zErrMsg = 0;
 string _CALLBACK_;
@@ -281,7 +294,7 @@ struct skill {
     int value;
     int rarity;
     int disp_order;
-    bool isML;
+    int isML;   // 0: Normal, 1: ML skill, 2: Gold ML skill, 3: Normal Gold skill
     int inferior_id;
 } skillList[MAXN];
 int sidx = 0;
@@ -373,7 +386,7 @@ skill* appendSkill(int id)
     if (t != -1)
         s.value = round(s.value * propCoeffi(prop[t + 10]));
 
-    s.isML = false;
+    s.isML = 0;
     s.inferior_id = 0;
     skillList[sidx++] = s;
     return &skillList[sidx - 1];
@@ -398,12 +411,17 @@ bool isML(string s)
     return s.substr(s.length() - 3) == doubleC;
 }
 
+void handleArgvError(wstring info)
+{
+    wcout << info << endl;
+    system("pause");
+    exit(0);
+}
 bool isCustomDBfile = false;
+bool debugMode = false;
+string customDBfile;
 int main(int argc, char* argv[])
 {
-    // Handle argument
-    if (argc > 1)   isCustomDBfile = true;
-
     // Initalize
     std::locale::global(std::locale("en_US.UTF-8"));    // I hate it
     for (int i = 0; i < 2; i++)
@@ -415,13 +433,34 @@ int main(int argc, char* argv[])
         }
     }
 
+    // Handle argument
+    if (argc > 1)
+    {
+        for (int i = 1; i < argc; i++)
+        {
+            if (string(argv[i]) == "-db")
+            {
+                i++;
+                if (i < argc)
+                    if (string(argv[i]).find("master.mdb") != string::npos)
+                    {
+                        isCustomDBfile = true;
+                        customDBfile = string(argv[i]);
+                    }
+                    else handleArgvError(L"Error: 无效的 master.mdb 文件位置");
+                else handleArgvError(L"Error: `-db` 选项后面应输入 master.mdb 文件位置");
+            }
+            else if (string(argv[i]) == "-debug")
+                debugMode = true;
+            else wprintf(L"Waring: 未知的参数 `%s`，程序将会无视\n", s2ws(string(argv[i])).c_str());
+        }
+    }
+
     // Prase share code
     while (1)
     {
         wprintf(L"输入Bwiki生成的分享码:");
         getline(cin, shareCode);
-        //shareCode = "TRSCRUUzNFozNFozNFozNFozNFoyWjBaMVoyWjNaNFo1WjFaMlozWjRaMFowWjYzYWVaNjNhbVo2M2tiWjYzczZaNjNzZlo2NHFwWjY1YTNaNmQyclo2ZDNmWjZkM3BhbHZu";
-       // shareCode = "TRSCRUUzNFozNFozNFozNFozNFozWjBaMVoyWjNaNFo1WjFaMlozWjRaMFowWjYzYWNaNjNmMlo2M2wwWjYzbzRaNjQ1N1o2NDhjWjY0OG1aNjRhOFo2NGFzWjY0ZDFaNjRkYlo2NGV1WjY0ZjhaNjRncVo2NGg0WjY0ajBaNjRqYVo2NGxnWjY0bHFaNjRubVo2NG8wYWx2bg==";
         if (shareCode.substr(0, 4) == "TRSC")
         {
             shareCode = base64_decode(shareCode.substr(4));
@@ -466,7 +505,7 @@ int main(int argc, char* argv[])
     for (int i = 0; i < 5; i++)    isDefaultData = isDefaultData and prop[i] == 100;
     system("cls");
     wprintf(L"\n| 基础属性:\n|\n");
-    wprintf(L"| 角色星级:%ws　　　　　固有技能等级: Lv%d\n", (prop[15] == 0 ? L"1-2" : L"3-5"), ++prop[16]);
+    wprintf(L"| 角色星级: %ws　　　　　固有技能等级: Lv%d\n", (prop[15] == 0 ? L"1-2" : L"3-5"), ++prop[16]);
     wprintf(L"| 芝：%c　　　ダート：%c\n", rk[prop[5]], rk[prop[6]]);
     wprintf(L"| 短距離：%c　マイル：%c　中距離：%c　長距離：%c\n",
         rk[prop[7]], rk[prop[8]], rk[prop[9]], rk[prop[10]]);
@@ -487,7 +526,7 @@ int main(int argc, char* argv[])
     mdbLocate = szPath + mdbLocate;
     if (isCustomDBfile)
     {
-        mdbLocate = s2ws(argv[1]);
+        mdbLocate = s2ws(customDBfile);
         wcout << L"- 计算器将使用第三方 master.mdb 文件：" << mdbLocate << endl << endl;
     }
     while (1)
@@ -495,6 +534,7 @@ int main(int argc, char* argv[])
         ifstream ifs(mdbLocate);
         if (ifs.is_open())
         {
+            // Search mdb in game folder
             int rc = sqlite3_open(ws2s(mdbLocate).c_str(), &db);
             if (rc)
             {
@@ -502,7 +542,24 @@ int main(int argc, char* argv[])
             }
             else break;
         }
-
+        else
+        {
+            // Search mdb in current folder
+            ifstream ifs2(ExePath() + L"\\master.mdb");
+            if (ifs2.is_open())
+            {
+                int rc = sqlite3_open("master.mdb", &db);
+                if (rc)
+                {
+                    fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
+                }
+                else
+                {
+                    wcout << L"- 计算器将使用第三方 master.mdb 文件：" << ExePath() + L"\\master.mdb" << endl << endl;
+                    break;
+                }
+            }
+        }
         wprintf(L"错误：无法打开 master.mdb ，请检查游戏目录\n");
         wprintf(L"如果 master.mdb 不在游戏目录下或无法打开，请手动复制并输入文件地址:");
         getline(wcin, mdbLocate);
@@ -512,7 +569,7 @@ int main(int argc, char* argv[])
     // Load skill basic data
     data = data.substr(index);
     index = 0;
-    for (int i = 0; index < data.length(); index++)
+    for (; index < data.length(); index++)
     {
         if (data[index] == 'Z')
         {
@@ -528,17 +585,6 @@ int main(int argc, char* argv[])
                 return 0;
             }
 
-            /*
-            *  Currently the normal gold skill id is ****01,
-            *  and its pre-skill id is ****02, with the same pre-4 digits.
-            *  When it comes to multiple-level(ML) skill, it is 01 -> double circle,
-            *  02 -> single cirle, 03 -> purple , 04 -> gold
-            *
-            *  Caution: if normal gold skill exists, enter only gold skill
-            *  if ML skill exists, enter only gold skill(if exist), or single cirle,
-            *  don't enter double circle one.
-            */
-
             // Seperate skill value for dp
             skill* tmp;
             if (s->rarity == 2 and (id - 1) % 10 == 0)
@@ -547,6 +593,7 @@ int main(int argc, char* argv[])
                 tmp = appendSkill(id + 1);
                 s->value -= tmp->value;
                 s->inferior_id = tmp->id;
+                s->isML = 3;
             }
             else if (s->rarity == 2 and (id - 4) % 10 == 0)
             {
@@ -554,10 +601,12 @@ int main(int argc, char* argv[])
                 skill* pre_s = appendSkill(id - 2);
                 skill* pre_d = appendSkill(id - 3);
                 s->value -= pre_d->value;
-                pre_d->value -= pre_s->value;
-                pre_d->isML = true;
-                pre_d->inferior_id = pre_s->id;
+                s->isML = 2;
                 s->inferior_id = pre_d->id;
+                pre_d->value -= pre_s->value;
+                pre_d->isML = 1;
+                pre_d->inferior_id = pre_s->id;
+                pre_s->isML = 0;
             }
             else
             {
@@ -569,7 +618,7 @@ int main(int argc, char* argv[])
                         // ML normal skill
                         tmp = appendSkill(id - 1);
                         tmp->value -= s->value;
-                        tmp->isML = true;
+                        tmp->isML = 1;
                         tmp->inferior_id = s->id;
                     }
                 }
@@ -577,9 +626,40 @@ int main(int argc, char* argv[])
         }
     }
     sqlite3_close(db);
-    sort(skillList + inherit, skillList + sidx - 1,
+    sort(skillList + inherit, skillList + sidx,
         [](skill x, skill y) {return x.disp_order < y.disp_order; });
 
+    if (debugMode)
+    {
+        printf("[DEBUG] Skill Basic:\n\n");
+        for (int i = 0; i < sidx; i++)
+        {
+            int c = 0, v = 0;
+            skill tmp = skillList[i];
+            printf("[DEBUG] >%d display_order: %d\n[DEBUG] Name: ", i + 1, tmp.disp_order);    cout<<tmp.name;
+            printf(" ID: %d Rarity: %d\n\[DEBUG] cost: %d value: %d\n",
+                tmp.id, tmp.rarity, tmp.cost, tmp.value);
+            c += tmp.cost, v += tmp.value;
+            if (tmp.isML)
+            {
+                tmp = skillList[findSkillInList(tmp.inferior_id)];
+                printf("[DEBUG] | inf_skill: 1 display_order: %d\n[DEBUG] | Name: ", tmp.disp_order);    cout << tmp.name;
+                printf(" ID: %d Rarity: %d\n\[DEBUG] | cost: %d value: %d\n",
+                    tmp.id, tmp.rarity, tmp.cost, tmp.value);
+                c += tmp.cost, v += tmp.value;
+                if (tmp.isML)
+                {
+                    tmp = skillList[findSkillInList(tmp.inferior_id)];
+                    printf("[DEBUG] | | inf_skill: 2 display_order: %d\n[DEBUG] | | Name: ", tmp.disp_order);    cout << tmp.name;
+                    printf(" ID: %d Rarity: %d\n\[DEBUG] | | cost: %d value: %d\n",
+                        tmp.id, tmp.rarity, tmp.cost, tmp.value);
+                    c += tmp.cost, v += tmp.value;
+                }
+                printf("[DEBUG] Total cost: %d Total Value: %d\n", c, v);
+            }
+            cout << endl;
+        }
+    }
 
     // Input
     while (1)
@@ -638,16 +718,18 @@ int main(int argc, char* argv[])
                 cin >> hint;
             }
 
-            s->cost = ceil(s->cost * ((1 - 0.01 * hintArray[hint]) - 0.1 * (ifGlobalDiscount ? 1 : 0)));
+            s->cost = round(s->cost * ((1 - 0.01 * hintArray[hint] - 0.00001) - 0.1 * (ifGlobalDiscount ? 1 : 0)));
+            // 0.00001: Create precision fault manually
+
             wprintf(L"| 此技能消耗 %d Pt, 技能评价 %d Pt. \n|\n", s->cost, s->value);
 
-            if (s->isML) ML = true;
+            if (s->isML == 1) ML = true;
             else ML = false;
         }
     }
 
     if (inherit > 0)   wprintf(L"\n- 请依次输入继承技能的Hint:\
-        \n- 如果最终计算结果中有继承的技能，将会以`IS.Lv`+x的形式出现，表示Hint为x的继承技能\n\n");
+        \n- 如果最终计算结果中有继承的技能，将会以 `IS.Lv`+x 的形式出现，表示Hint为x的继承技能\n\n");
     for (int i = 0; i < inherit; i++)
     {
         int hint = 0;
@@ -658,7 +740,6 @@ int main(int argc, char* argv[])
         skillList[i] = tmp;
     }
 
-    //wprintf(L"\nSkills details List:\n");
     // Restore data to write dp easier
     int didx = 0;
     for (int i = 0; i < sidx; i++)
@@ -673,9 +754,6 @@ int main(int argc, char* argv[])
             if (tmp2.inferior_id != 0)
             {
                 skill tmp3 = skillList[findSkillInList(tmp2.inferior_id)];
- //cout<<tmp.name << "->" << tmp2.name << "->" << tmp3.name;
- //cout << "cost:" << tmp.cost << "->" << tmp2.cost << "->" << tmp3.cost << endl;
- //cout << "value:" << tmp.value << "->" << tmp2.value << "->" << tmp3.cost << endl;
                 idLog[didx + 2 * MAXN] = tmp.id;
                 pw[didx][1] = tmp.cost;
                 pv[didx][1] = tmp.value;
@@ -692,9 +770,6 @@ int main(int argc, char* argv[])
             }
             else
             {
-//cout << tmp.name << "->" << tmp2.name << endl;
-// cout << "cost:"<<tmp.cost << "->" << tmp2.cost << endl;
-// cout << "value:" << tmp.value << "->" << tmp2.value << endl;
                 idLog[didx] = tmp2.id;
                 w[didx] = tmp2.cost;
                 v[didx] = tmp2.value;
@@ -711,14 +786,41 @@ int main(int argc, char* argv[])
             idLog[didx] = tmp.id;
             w[didx] = tmp.cost;
             v[didx] = tmp.value;
-/*cout << tmp.name << endl;
-cout << "cost:" << tmp.cost << endl;
-cout << "value:" << tmp.value << endl;*/
         }
-//cout << endl;
         didx++;
     }
 
+    if (debugMode)
+    {
+        printf("[DEBUG] Skill List:\n\n");
+        for (int i = 0; i < sidx; i++)
+        {
+            int c = 0, v = 0;
+            skill tmp = skillList[i];
+            printf("[DEBUG] >%d display_order: %d\n[DEBUG] Name: ", i + 1, tmp.disp_order);    cout << tmp.name;
+            printf(" ID: %d Rarity: %d\n\[DEBUG] cost: %d value: %d\n",
+                tmp.id, tmp.rarity, tmp.cost, tmp.value);
+            c += tmp.cost, v += tmp.value;
+            if (tmp.isML)
+            {
+                tmp = skillList[findSkillInList(tmp.inferior_id)];
+                printf("[DEBUG] | inf_skill: 1 display_order: %d\n[DEBUG] | Name: ", tmp.disp_order);    cout << tmp.name;
+                printf(" ID: %d Rarity: %d\n\[DEBUG] | cost: %d value: %d\n",
+                    tmp.id, tmp.rarity, tmp.cost, tmp.value);
+                c += tmp.cost, v += tmp.value;
+                if (tmp.isML)
+                {
+                    tmp = skillList[findSkillInList(tmp.inferior_id)];
+                    printf("[DEBUG] | | inf_skill: 2 display_order: %d\n[DEBUG] | | Name: ", tmp.disp_order);    cout << tmp.name;
+                    printf(" ID: %d Rarity: %d\n\[DEBUG] | | cost: %d value: %d\n",
+                        tmp.id, tmp.rarity, tmp.cost, tmp.value);
+                    c += tmp.cost, v += tmp.value;
+                }
+                printf("[DEBUG] Total cost: %d Total Value: %d\n", c, v);
+            }
+            cout << endl;
+        }
+    }
 
     // dp
     for (int i = 0; i < didx; i++)
@@ -769,12 +871,12 @@ cout << "value:" << tmp.value << endl;*/
                 Log[j] = Log[j - w[i] - pw[i][0] - pw[i][1]];
                 Log[j].push_back(i);
                 Log[j].push_back(i + MAXN);
-                Log[j].push_back(i + 2*MAXN);
+                Log[j].push_back(i + 2 * MAXN);
             }
         }
     }
 
-    wprintf(L"\n\n| 结果:\n|\n| 技能名   消耗Pt   评价Pt\n|\n");
+    wprintf(L"\n\n| 结果:\n|\n| | 技能名   消耗Pt   评价Pt\n|\n");
 
     skill result[MAXN];
     int ridx = 0;
@@ -782,14 +884,28 @@ cout << "value:" << tmp.value << endl;*/
     {
         result[ridx++] = skillList[findSkillInList(idLog[Log[skillPoint][i]])];
     }
-    sort(result, result + ridx - 1,
+    sort(result, result + ridx,
         [](skill x, skill y) {return x.disp_order < y.disp_order; });
     
     int costAll = 0;
+    for (int i = 0; i < ridx; i++)  costAll += result[i].cost;
     for (int i = 0; i < ridx; i++)
     {
-        printf("| %s %d %d\n", result[i].name.c_str(), result[i].cost, result[i].value);
-        costAll += result[i].cost;
+        if (result[i].isML == 0)
+            printf("|   %s %d %d\n", result[i].name.c_str(), result[i].cost, result[i].value);
+        if (result[i].isML == 1 or result[i].isML == 3)
+        {
+            printf("| / %s %d %d\n", result[i].name.c_str(), result[i].cost, result[i].value);
+            printf("| \\ %s %d %d\n", result[i+1].name.c_str(), result[i+1].cost, result[i+1].value);
+            i++;
+        }
+        if (result[i].isML == 2)
+        {
+            printf("| / %s %d %d\n", result[i].name.c_str(), result[i].cost, result[i].value);
+            printf("| | %s %d %d\n", result[i + 1].name.c_str(), result[i + 1].cost, result[i + 1].value);
+            printf("| \\ %s %d %d\n", result[i + 2].name.c_str(), result[i + 2].cost, result[i + 2].value);
+            i += 2;
+        }
     }
     wcout << L"|\n| 技能总消耗: " << costAll << endl;
     wcout << L"| 技能总评分: " << dp[skillPoint] << endl;
@@ -800,9 +916,26 @@ cout << "value:" << tmp.value << endl;*/
         for (int i = 0; i < 5; i++)    maxRankPoint += basicPoint[prop[i]];
         maxRankPoint += (prop[15] == 1 ? prop[16] * 170 : prop[16] * 120) + dp[skillPoint];
         wcout << L"|\n| 理论能达到的最大评分：" << maxRankPoint << endl;
+        if (maxRankPoint > 19800)  wprintf(L"|\n| \033[31;1mUG及以上评价确定\033[0m\n");
     }
 
     wcout << endl;
     system("pause");
     return 0;
 }
+
+/*
+*  Currently the normal gold skill id is ****01,
+*  and its pre-skill id is ****02, with the same pre-4 digits.
+*  When it comes to multiple-level(ML) skill, it is 01 -> double circle,
+*  02 -> single cirle, 03 -> purple , 04 -> gold
+*
+*  Caution: if normal gold skill exists, enter only gold skill
+*  if ML skill exists, enter only gold skill(if exist), or single cirle,
+*  don't enter double circle one.
+*
+* 
+*  Test:
+*  shareCode = "TRSCRUUzNFozNFozNFozNFozNFoyWjBaMVoyWjNaNFo1WjFaMlozWjRaMFowWjYzYWVaNjNhbVo2M2tiWjYzczZaNjNzZlo2NHFwWjY1YTNaNmQyclo2ZDNmWjZkM3BhbHZu";
+*  shareCode = "TRSCRUUzNFozNFozNFozNFozNFozWjBaMVoyWjNaNFo1WjFaMlozWjRaMFowWjYzYWNaNjNmMlo2M2wwWjYzbzRaNjQ1N1o2NDhjWjY0OG1aNjRhOFo2NGFzWjY0ZDFaNjRkYlo2NGV1WjY0ZjhaNjRncVo2NGg0WjY0ajBaNjRqYVo2NGxnWjY0bHFaNjRubVo2NG8wYWx2bg==";
+*/
