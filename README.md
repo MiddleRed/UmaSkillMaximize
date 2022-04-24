@@ -1,5 +1,7 @@
 # UmaSkillMaximize
-最大化技能评价点计算器
+最大化技能评价点计算器   
+**注：如果你是DMM端，推荐使用无需输入的[UmamusumeResponseAnalyzer](https://github.com/EtherealAO/UmamusumeResponseAnalyzer)**  
+此项目日后不再维护。  
 ## 如何使用
 *请务必逐字阅读完整*
 1. 下载页面右边 `release` （发行版）中的zip，解压（请确保文件夹目录没有中文字符）  
@@ -31,7 +33,4 @@
 如果遇到Bug，请提交issue，或者在nga帖子中回复。如果是遇到程序本体的问题，请尝试先按照以上处理错误的方法自行处理，如果无法处理请仔细说明报错的问题；如果是遇到程序计算的问题，请按如下方式汇报错误：  
 使用命令行，`cd` 切换到解压计算器的文件目录下，并在命令行中输入 `Calc.exe -debug` 打开计算器，之后照常输入数据，并得出计算结果。然后，请将从开始运行计算器后计算器**所有显示的内容**复制下来，并与你遇到的计算器的问题一并汇报。如有必要，也请截屏附上游戏内的选择技能界面的所有技能   
 ## 其他
-TODO：    
-· 弃用C++版本(-v0.7)，使用C#重新实现  
-· 对接[UmaEnhance](https://github.com/MiddleRed/UmaEnhance)实现全自动读取技能并计算    
 特别感谢[@Ealvn](https://space.bilibili.com/5418144/)提供评分计算器分享码算法
