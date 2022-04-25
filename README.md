@@ -1,7 +1,6 @@
 # UmaSkillMaximize
 最大化技能评价点计算器   
-**注：如果你是DMM端，推荐使用无需输入的[UmamusumeResponseAnalyzer](https://github.com/EtherealAO/UmamusumeResponseAnalyzer)**  
-此项目日后不再维护。  
+此项目日后不再维护（应该）。  
 ## 如何使用
 *请务必逐字阅读完整*
 1. 下载页面右边 `release` （发行版）中的zip，解压（请确保文件夹目录没有中文字符）  
