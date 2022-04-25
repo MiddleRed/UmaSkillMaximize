@@ -699,41 +699,6 @@ int main(int argc, char* argv[])
 		wprintf(L"Invalid input, please enter M/m (to enter manually) or P/p (to use msgpack).\n");
 	}
 
-	if (useMsgPack)
-	{
-
-	}
-	else
-	{
-		wprintf(L"\n- 请输入技能的Hint值（只需输入0到5的整数）\n");
-		wprintf(L"- 注意，金技能的Hint和其下位技能的Hint没有关系，请分别输入，不要混淆\n\n");
-		bool ML = false;
-		for (int i = inherit, hint = 0; i < sidx; i++)
-		{
-			skill* s = &skillList[i];
-
-			wprintf(L"| 种类: %s | 技能名: ",
-				(s->rarity == 2 ? L"金技能　" : L"普通技能"));
-			printf("%s | Hint: ", s->name.c_str());
-			if (!ML)  cin >> hint;
-			else cout << hint << endl;
-
-			while (hint < 0 or hint > 5)
-			{
-				wprintf(L"无效的Hint值，Hint值应为大于等于0，小于等于5的整数，请重新输入: ");
-				cin >> hint;
-			}
-
-			s->cost = round(s->cost * ((1 - 0.01 * hintArray[hint] - 0.00001) - 0.1 * (ifGlobalDiscount ? 1 : 0)));
-			// 0.00001: Create precision fault manually
-
-			wprintf(L"| 此技能消耗 %d Pt, 技能评价 %d Pt. \n|\n", s->cost, s->value);
-
-			if (s->isML == 1) ML = true;
-			else ML = false;
-		}
-	}
-
 	if (inherit > 0)   wprintf(L"\n- 请依次输入继承技能的Hint: \
         \n- 如果最终计算结果中有继承的技能，将会以 `IS.Lv`+x 的形式出现，表示Hint为x的继承技能\n\n");
 	for (int i = 0; i < inherit; i++)
@@ -751,7 +716,7 @@ int main(int argc, char* argv[])
 		skillList[i] = tmp;
 	}
 
-	// Restore data to write dp easier
+	// Store the data to dp array to make dp code more understandable
 	int didx = 0;
 	for (int i = 0; i < sidx; i++)
 	{
@@ -832,7 +797,7 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	// dp
+	// dp (0/1 knapsack problem variation)
 	for (int i = 0; i < didx; i++)
 	{
 		for (int j = skillPoint; j >= w[i]; j--)
