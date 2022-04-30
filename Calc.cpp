@@ -678,25 +678,41 @@ int main(int argc, char* argv[])
 
 		wprintf(L"无效输入，请输入 Y或y 或者 N或n.\n");
 	}
-	exitY:
-		ifGlobalDiscount = true;
-	exitN:
+exitY:
+	ifGlobalDiscount = true;
+exitN:
 
 	wprintf(L"- 请输入技能点: ");
 	cin >> skillPoint;
 
 	// Input discount
 	int hintArray[] = { 0, 10, 20, 30, 35, 40 };
-	bool useMsgPack = false;
-	while (false)
+	wprintf(L"\n- 请输入技能的Hint值（只需输入0到5的整数）\n");
+	wprintf(L"- 注意，金技能的Hint和其下位技能的Hint没有关系，请分别输入，不要混淆\n\n");
+	bool ML = false;
+	for (int i = inherit, hint = 0; i < sidx; i++)
 	{
-		string _tmp;
-		wprintf(L"Would you like to input hint manually(M) or use msgpack to input(P)? (M/P):");
-		getline(cin, _tmp);
-		if (_tmp == "M" or _tmp == "m") break;
-		else if (_tmp == "P" or _tmp == "p") { useMsgPack = true; break; };
+		skill* s = &skillList[i];
 
-		wprintf(L"Invalid input, please enter M/m (to enter manually) or P/p (to use msgpack).\n");
+		wprintf(L"| 种类: %s | 技能名: ",
+			(s->rarity == 2 ? L"金技能　" : L"普通技能"));
+		printf("%s | Hint: ", s->name.c_str());
+		if (!ML)  cin >> hint;
+		else cout << hint << endl;
+
+		while (hint < 0 or hint > 5)
+		{
+			wprintf(L"无效的Hint值，Hint值应为大于等于0，小于等于5的整数，请重新输入: ");
+			cin >> hint;
+		}
+
+		s->cost = round(s->cost * ((1 - 0.01 * hintArray[hint] - 0.00001) - 0.1 * (ifGlobalDiscount ? 1 : 0)));
+		// 0.00001: Create precision fault manually
+
+		wprintf(L"| 此技能消耗 %d Pt, 技能评价 %d Pt. \n|\n", s->cost, s->value);
+
+		if (s->isML == 1) ML = true;
+		else ML = false;
 	}
 
 	if (inherit > 0)   wprintf(L"\n- 请依次输入继承技能的Hint: \
@@ -716,7 +732,7 @@ int main(int argc, char* argv[])
 		skillList[i] = tmp;
 	}
 
-	// Store the data to dp array to make dp code more understandable
+	// Restore data to write dp easier
 	int didx = 0;
 	for (int i = 0; i < sidx; i++)
 	{
@@ -797,7 +813,7 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	// dp (0/1 knapsack problem variation)
+	// dp
 	for (int i = 0; i < didx; i++)
 	{
 		for (int j = skillPoint; j >= w[i]; j--)
