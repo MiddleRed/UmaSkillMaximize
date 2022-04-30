@@ -290,12 +290,12 @@ const int basicPoint[] = { 0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,
 3733,3739,3746,3753,3760,3767,3773,3780,3787,3794,3801,3807,3814,3821,3828,3835,3841 };
 const wstring rk = L"SABCDEFG";
 const string umaskillmaximize = R"(  _   _                 ____  _    _ _ _ __  __            _           _         
-| | | |_ __ ___   __ _/ ___|| | _(_) | |  \/  | __ ___  _(_)_ __ ___ (_)_______ 
-| | | | '_ ` _ \ / _` \___ \| |/ / | | | |\/| |/ _` \ \/ / | '_ ` _ \| |_  / _ \
-| |_| | | | | | | (_| |___) |   <| | | | |  | | (_| |>  <| | | | | | | |/ /  __/
-\___/|_| |_| |_|\__,_|____/|_|\_\_|_|_|_|  |_|\__,_/_/\_\_|_| |_| |_|_/___\___|
+ | | | |_ __ ___   __ _/ ___|| | _(_) | |  \/  | __ ___  _(_)_ __ ___ (_)_______ 
+ | | | | '_ ` _ \ / _` \___ \| |/ / | | | |\/| |/ _` \ \/ / | '_ ` _ \| |_  / _ \
+ | |_| | | | | | | (_| |___) |   <| | | | |  | | (_| |>  <| | | | | | | |/ /  __/
+  \___/|_| |_| |_|\__,_|____/|_|\_\_|_|_|_|  |_|\__,_/_/\_\_|_| |_| |_|_/___\___|
                                                                                  
-Made by MidRed    https://github.com/MiddleRed/UmaSkillMaximize     version: 0.8
+ Made by MidRed    https://github.com/MiddleRed/UmaSkillMaximize     version: 0.8
 )";
 #pragma endregion
 
@@ -704,6 +704,8 @@ exitN:
 
 	// Input discount
 	int hintArray[] = { 0, 10, 20, 30, 35, 40 };
+	bool useMsgPack = false;
+
 	wprintf(L"\n- 请输入技能的Hint值（只需输入0到5的整数）\n");
 	wprintf(L"- 注意，金技能的Hint和其下位技能的Hint没有关系，请分别输入，不要混淆\n\n");
 	bool ML = false;
@@ -730,218 +732,218 @@ exitN:
 
 		if (s->isML == 1) ML = true;
 		else ML = false;
+	}
 
-		if (inherit > 0)   wprintf(L"\n- 请依次输入继承技能的Hint: \
-\n- 如果最终计算结果中有继承的技能，将会以 `IS.Lv`+x 的形式出现，表示Hint为x的继承技能\n\n");
-		for (int i = 0; i < inherit; i++)
+	if (inherit > 0)   wprintf(L"\n- 请依次输入继承技能的Hint: \
+        \n- 如果最终计算结果中有继承的技能，将会以 `IS.Lv`+x 的形式出现，表示Hint为x的继承技能\n\n");
+	for (int i = 0; i < inherit; i++)
+	{
+		int hint = 0;
+		wprintf(L"| 继承技能%d的Hint: ", i + 1);
+		cin >> hint;
+		while (hint < 0 or hint > 5)
 		{
-			int hint = 0;
-			wprintf(L"| 继承技能%d的Hint: ", i + 1);
+			wprintf(L"无效的Hint值，Hint值应为大于等于0，小于等于5的整数,请重新输入: ");
 			cin >> hint;
-			while (hint < 0 or hint > 5)
-			{
-				wprintf(L"无效的Hint值，Hint值应为大于等于0，小于等于5的整数,请重新输入: ");
-				cin >> hint;
-			}
-			skill tmp = { "IS.Lv" + i2s(hint), i + 1 ,
-			round(200 * ((1 - 0.01 * hintArray[hint]) - 0.1 * (ifGlobalDiscount ? 1 : 0))) , 180, 1, i, false, 0 };
-			skillList[i] = tmp;
 		}
+		skill tmp = { "IS.Lv" + i2s(hint), i + 1 ,
+			round(200 * ((1 - 0.01 * hintArray[hint]) - 0.1 * (ifGlobalDiscount ? 1 : 0))) , 180, 1, i, false, 0 };
+		skillList[i] = tmp;
+	}
 
-		// Restore data to write dp easier
-		int didx = 0;
-		for (int i = 0; i < sidx; i++)
+	// Restore data to write dp easier
+	int didx = 0;
+	for (int i = 0; i < sidx; i++)
+	{
+		skill tmp = skillList[i];
+		if (vis[tmp.id])    continue;
+		vis[tmp.id] = true;
+
+		if (tmp.inferior_id != 0)
 		{
-			skill tmp = skillList[i];
-			if (vis[tmp.id])    continue;
-			vis[tmp.id] = true;
-
-			if (tmp.inferior_id != 0)
+			skill tmp2 = skillList[findSkillInList(tmp.inferior_id)];
+			if (tmp2.inferior_id != 0)
 			{
-				skill tmp2 = skillList[findSkillInList(tmp.inferior_id)];
-				if (tmp2.inferior_id != 0)
-				{
-					skill tmp3 = skillList[findSkillInList(tmp2.inferior_id)];
-					idLog[didx + 2 * MAXN] = tmp.id;
-					pw[didx][1] = tmp.cost;
-					pv[didx][1] = tmp.value;
+				skill tmp3 = skillList[findSkillInList(tmp2.inferior_id)];
+				idLog[didx + 2 * MAXN] = tmp.id;
+				pw[didx][1] = tmp.cost;
+				pv[didx][1] = tmp.value;
 
-					idLog[didx + MAXN] = tmp2.id;
-					pw[didx][0] = tmp2.cost;
-					pv[didx][0] = tmp2.value;
-					vis[tmp2.id] = true;
+				idLog[didx + MAXN] = tmp2.id;
+				pw[didx][0] = tmp2.cost;
+				pv[didx][0] = tmp2.value;
+				vis[tmp2.id] = true;
 
-					idLog[didx] = tmp3.id;
-					w[didx] = tmp3.cost;
-					v[didx] = tmp3.value;
-					vis[tmp3.id] = true;
-				}
-				else
-				{
-					idLog[didx] = tmp2.id;
-					w[didx] = tmp2.cost;
-					v[didx] = tmp2.value;
-					vis[tmp2.id] = true;
-
-					idLog[didx + MAXN] = tmp.id;
-					pw[didx][0] = tmp.cost;
-					pv[didx][0] = tmp.value;
-				}
+				idLog[didx] = tmp3.id;
+				w[didx] = tmp3.cost;
+				v[didx] = tmp3.value;
+				vis[tmp3.id] = true;
 			}
 			else
 			{
-				idLog[didx] = tmp.id;
-				w[didx] = tmp.cost;
-				v[didx] = tmp.value;
-			}
-			didx++;
-		}
+				idLog[didx] = tmp2.id;
+				w[didx] = tmp2.cost;
+				v[didx] = tmp2.value;
+				vis[tmp2.id] = true;
 
-		if (debugMode)
+				idLog[didx + MAXN] = tmp.id;
+				pw[didx][0] = tmp.cost;
+				pv[didx][0] = tmp.value;
+			}
+		}
+		else
 		{
-			printf("[DEBUG] Skill List:\n\n");
-			for (int i = 0; i < sidx; i++)
+			idLog[didx] = tmp.id;
+			w[didx] = tmp.cost;
+			v[didx] = tmp.value;
+		}
+		didx++;
+	}
+
+	if (debugMode)
+	{
+		printf("[DEBUG] Skill List:\n\n");
+		for (int i = 0; i < sidx; i++)
+		{
+			int c = 0, v = 0;
+			skill tmp = skillList[i];
+			printf("[DEBUG] >%d display_order: %d\n[DEBUG] Name: ", i + 1, tmp.disp_order);    cout << tmp.name;
+			printf(" ID: %d Rarity: %d\n\[DEBUG] cost: %d value: %d\n",
+				tmp.id, tmp.rarity, tmp.cost, tmp.value);
+			c += tmp.cost, v += tmp.value;
+			if (tmp.isML)
 			{
-				int c = 0, v = 0;
-				skill tmp = skillList[i];
-				printf("[DEBUG] >%d display_order: %d\n[DEBUG] Name: ", i + 1, tmp.disp_order);    cout << tmp.name;
-				printf(" ID: %d Rarity: %d\n\[DEBUG] cost: %d value: %d\n",
+				tmp = skillList[findSkillInList(tmp.inferior_id)];
+				printf("[DEBUG] | inf_skill: 1 display_order: %d\n[DEBUG] | Name: ", tmp.disp_order);    cout << tmp.name;
+				printf(" ID: %d Rarity: %d\n\[DEBUG] | cost: %d value: %d\n",
 					tmp.id, tmp.rarity, tmp.cost, tmp.value);
 				c += tmp.cost, v += tmp.value;
 				if (tmp.isML)
 				{
 					tmp = skillList[findSkillInList(tmp.inferior_id)];
-					printf("[DEBUG] | inf_skill: 1 display_order: %d\n[DEBUG] | Name: ", tmp.disp_order);    cout << tmp.name;
-					printf(" ID: %d Rarity: %d\n\[DEBUG] | cost: %d value: %d\n",
+					printf("[DEBUG] | | inf_skill: 2 display_order: %d\n[DEBUG] | | Name: ", tmp.disp_order);    cout << tmp.name;
+					printf(" ID: %d Rarity: %d\n\[DEBUG] | | cost: %d value: %d\n",
 						tmp.id, tmp.rarity, tmp.cost, tmp.value);
 					c += tmp.cost, v += tmp.value;
-					if (tmp.isML)
-					{
-						tmp = skillList[findSkillInList(tmp.inferior_id)];
-						printf("[DEBUG] | | inf_skill: 2 display_order: %d\n[DEBUG] | | Name: ", tmp.disp_order);    cout << tmp.name;
-						printf(" ID: %d Rarity: %d\n\[DEBUG] | | cost: %d value: %d\n",
-							tmp.id, tmp.rarity, tmp.cost, tmp.value);
-						c += tmp.cost, v += tmp.value;
-					}
-					printf("[DEBUG] Total cost: %d Total Value: %d\n", c, v);
 				}
-				cout << endl;
+				printf("[DEBUG] Total cost: %d Total Value: %d\n", c, v);
 			}
+			cout << endl;
 		}
+	}
 
-		// dp
-		for (int i = 0; i < didx; i++)
+	// dp
+	for (int i = 0; i < didx; i++)
+	{
+		for (int j = skillPoint; j >= w[i]; j--)
 		{
-			for (int j = skillPoint; j >= w[i]; j--)
-			{
-				int choice[] = {
-					dp[j],
-					dp[j - w[i]] + v[i],
+			int choice[] = {
+				dp[j],
+				dp[j - w[i]] + v[i],
 
-					j - w[i] - pw[i][0] >= 0 ?
+				j - w[i] - pw[i][0] >= 0 ?
 					dp[j - w[i] - pw[i][0]] + v[i] + pv[i][0] :
 					-1,
 
-					j - w[i] - pw[i][0] - pw[i][1] >= 0 ?
+				j - w[i] - pw[i][0] - pw[i][1] >= 0 ?
 					dp[j - w[i] - pw[i][0] - pw[i][1]] + v[i] + pv[i][0] + pv[i][1] :
 					-1
-				};
+			};
 
-				auto ismax = [choice](int idx)
-				{
-					bool _ISMAX_ = true;
-					for (int i = 0; i < 4; i++)
-						_ISMAX_ = choice[idx] >= choice[i] and _ISMAX_;
-					return _ISMAX_;
-				};
-
-				if (ismax(0))
-				{
-					dp[j] = choice[0];
-				}
-				else if (ismax(1))
-				{
-					dp[j] = choice[1];
-					Log[j] = Log[j - w[i]];
-					Log[j].push_back(i);
-				}
-				else if (ismax(2))
-				{
-					dp[j] = choice[2];
-					Log[j] = Log[j - w[i] - pw[i][0]];
-					Log[j].push_back(i);
-					Log[j].push_back(i + MAXN);
-				}
-				else if (ismax(3))
-				{
-					dp[j] = choice[3];
-					Log[j] = Log[j - w[i] - pw[i][0] - pw[i][1]];
-					Log[j].push_back(i);
-					Log[j].push_back(i + MAXN);
-					Log[j].push_back(i + 2 * MAXN);
-				}
-			}
-		}
-		wprintf(L"\n\n| 结果: \n|\n|  技能名   消耗Pt\n|\n");
-
-		skill result[MAXN];
-		int ridx = 0;
-		for (int i = 0; i < Log[skillPoint].size(); i++)
-		{
-			result[ridx++] = skillList[findSkillInList(idLog[Log[skillPoint][i]])];
-		}
-		sort(result, result + ridx,
-			[](skill x, skill y) {return x.disp_order < y.disp_order; });
-
-		if (debugMode)
-		{
-			printf("[DEBUG] Result List:\n\n");
-			for (int i = 0; i < ridx; i++)
+			auto ismax = [choice](int idx)
 			{
-				int c = 0, v = 0;
-				skill tmp = result[i];
-				printf("[DEBUG] >%d display_order: %d\n[DEBUG] Name: ", i + 1, tmp.disp_order);    cout << tmp.name;
-				printf(" ID: %d Rarity: %d\n\[DEBUG] cost: %d value: %d\n",
-					tmp.id, tmp.rarity, tmp.cost, tmp.value);
-				c += tmp.cost, v += tmp.value;
-				cout << endl;
+				bool _ISMAX_ = true;
+				for (int i = 0; i < 4; i++)
+					_ISMAX_ = choice[idx] >= choice[i] and _ISMAX_;
+				return _ISMAX_;
+			};
+
+			if (ismax(0))
+			{
+				dp[j] = choice[0];
+			}
+			else if (ismax(1))
+			{
+				dp[j] = choice[1];
+				Log[j] = Log[j - w[i]];
+				Log[j].push_back(i);
+			}
+			else if (ismax(2))
+			{
+				dp[j] = choice[2];
+				Log[j] = Log[j - w[i] - pw[i][0]];
+				Log[j].push_back(i);
+				Log[j].push_back(i + MAXN);
+			}
+			else if (ismax(3))
+			{
+				dp[j] = choice[3];
+				Log[j] = Log[j - w[i] - pw[i][0] - pw[i][1]];
+				Log[j].push_back(i);
+				Log[j].push_back(i + MAXN);
+				Log[j].push_back(i + 2 * MAXN);
 			}
 		}
+	}
+	wprintf(L"\n\n| 结果: \n|\n|  技能名   消耗Pt\n|\n");
 
-		int costAll = 0;
-		for (int i = 0; i < ridx; i++)  costAll += result[i].cost;
+	skill result[MAXN];
+	int ridx = 0;
+	for (int i = 0; i < Log[skillPoint].size(); i++)
+	{
+		result[ridx++] = skillList[findSkillInList(idLog[Log[skillPoint][i]])];
+	}
+	sort(result, result + ridx,
+		[](skill x, skill y) {return x.disp_order < y.disp_order; });
+
+	if (debugMode)
+	{
+		printf("[DEBUG] Result List:\n\n");
 		for (int i = 0; i < ridx; i++)
 		{
-			if (result[i].isML == 0)
-				wprintf(L"|  %s %d\n", s2ws(result[i].name).c_str(), result[i].cost);
-			if (result[i].isML == 1 or result[i].isML == 3)
-			{
-				wprintf(L"|┌ %s %d\n", s2ws(result[i].name.c_str()).c_str(), result[i].cost);
-				wprintf(L"|└ %s %d\n", s2ws(result[i + 1].name.c_str()).c_str(), result[i + 1].cost);
-				i++;
-			}
-			if (result[i].isML == 2)
-			{
-				wprintf(L"|┌ %s %d\n", s2ws(result[i].name.c_str()).c_str(), result[i].cost);
-				wprintf(L"|｜%s %d\n", s2ws(result[i + 1].name.c_str()).c_str(), result[i + 1].cost);
-				wprintf(L"|└ %s %d\n", s2ws(result[i + 2].name.c_str()).c_str(), result[i + 2].cost);
-				i += 2;
-			}
+			int c = 0, v = 0;
+			skill tmp = result[i];
+			printf("[DEBUG] >%d display_order: %d\n[DEBUG] Name: ", i + 1, tmp.disp_order);    cout << tmp.name;
+			printf(" ID: %d Rarity: %d\n\[DEBUG] cost: %d value: %d\n",
+				tmp.id, tmp.rarity, tmp.cost, tmp.value);
+			c += tmp.cost, v += tmp.value;
+			cout << endl;
 		}
-		wcout << L"|\n| 技能总消耗: " << costAll << endl;
-		wcout << L"| 技能总评分: " << dp[skillPoint] << endl;
-
-		if (not isDefaultData)
-		{
-			int maxRankPoint = 0;
-			for (int i = 0; i < 5; i++)    maxRankPoint += basicPoint[prop[i]];
-			maxRankPoint += (prop[15] == 1 ? prop[16] * 170 : prop[16] * 120) + dp[skillPoint];
-			wcout << L"|\n| 理论能达到的最大评分: " << maxRankPoint << endl;
-			if (maxRankPoint > 19800)  wprintf(L"|\n| \033[31;1mUG确定\033[0m\n");
-		}
-
-		wcout << endl;
-		system("pause");
-		return 0;
 	}
+
+	int costAll = 0;
+	for (int i = 0; i < ridx; i++)  costAll += result[i].cost;
+	for (int i = 0; i < ridx; i++)
+	{
+		if (result[i].isML == 0)
+			wprintf(L"|  %s %d\n", s2ws(result[i].name).c_str(), result[i].cost);
+		if (result[i].isML == 1 or result[i].isML == 3)
+		{
+			wprintf(L"|┌ %s %d\n", s2ws(result[i].name.c_str()).c_str(), result[i].cost);
+			wprintf(L"|└ %s %d\n", s2ws(result[i + 1].name.c_str()).c_str(), result[i + 1].cost);
+			i++;
+		}
+		if (result[i].isML == 2)
+		{
+			wprintf(L"|┌ %s %d\n", s2ws(result[i].name.c_str()).c_str(), result[i].cost);
+			wprintf(L"|｜%s %d\n", s2ws(result[i + 1].name.c_str()).c_str(), result[i + 1].cost);
+			wprintf(L"|└ %s %d\n", s2ws(result[i + 2].name.c_str()).c_str(), result[i + 2].cost);
+			i += 2;
+		}
+	}
+	wcout << L"|\n| 技能总消耗: " << costAll << endl;
+	wcout << L"| 技能总评分: " << dp[skillPoint] << endl;
+
+	if (not isDefaultData)
+	{
+		int maxRankPoint = 0;
+		for (int i = 0; i < 5; i++)    maxRankPoint += basicPoint[prop[i]];
+		maxRankPoint += (prop[15] == 1 ? prop[16] * 170 : prop[16] * 120) + dp[skillPoint];
+		wcout << L"|\n| 理论能达到的最大评分: " << maxRankPoint << endl;
+		if (maxRankPoint > 19800)  wprintf(L"|\n| \033[31;1mUG确定\033[0m\n");
+	}
+
+	wcout << endl;
+	system("pause");
+	return 0;
 }
