@@ -1,6 +1,7 @@
 # UmaSkillMaximize
-最大化技能评价点计算器   
-此项目停止更新新功能，日后仅会维护算法的正确性。
+最大化技能评价点计算器  
+~~此项目停止更新新功能，日后仅会维护算法的正确性。~~  
+### 此项目停止更新，请使用同样具备此功能的 [UmamusumeResponseAnalyzer](https://github.com/UmamusumeResponseAnalyzer/UmamusumeResponseAnalyzer)
 ## 如何使用
 *请务必逐字阅读完整*
 1. 下载页面右边 `release` （发行版）中的zip，解压（请确保文件夹目录没有中文字符）  
